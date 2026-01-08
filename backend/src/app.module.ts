@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ArticlesModule } from './modules/articles/articles.module';
+import { LLMAgentsModule } from './modules/llm-agents/llm-agents.module';
 import { JwtAuthGuard } from './modules/auth/jwt.guard';
 import configuration from './config/configuration';
 
@@ -19,6 +20,7 @@ import configuration from './config/configuration';
     UsersModule,
     AuthModule,
     ArticlesModule,
+    LLMAgentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtAuthGuard],

@@ -1,14 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Article } from './articles.schema';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { QueryArticlesDto } from './dto/query-articles.dto';
+import { DomainCuratorAgent } from '../llm-agents/agents/domain-curator.agent';
+import { ArgumentMapperAgent } from '../llm-agents/agents/argument-mapper.agent';
+import { LanguageReasoningAgent } from '../llm-agents/agents/language-reasoning.agent';
+import { ProfessionalFeedbackAgent } from '../llm-agents/agents/professional-feedback.agent';
 
 @Injectable()
 export class ArticlesService {
-  constructor(@InjectModel('Article') private articleModel: Model<Article>) {}
+  private readonly logger = new Logger(ArticlesService.name);
+
+  constructor(
+    @InjectModel('Article') private articleModel: Model<Article>,
+    private domainCuratorAgent: DomainCuratorAgent,
+    private argumentMapperAgent: ArgumentMapperAgent,
+    private languageReasoningAgent: LanguageReasoningAgent,
+    private professionalFeedbackAgent: ProfessionalFeedbackAgent,
+  ) {}
 
   async create(createArticleDto: CreateArticleDto): Promise<Article> {
     // Check if article with same title already exists
@@ -208,5 +220,62 @@ export class ArticlesService {
       articlesByDomain,
       articlesByDifficulty,
     };
+  }
+
+  /**
+   * Process article with LLM Agents to generate AI content
+   * This is a long-running operation that calls multiple LLM agents
+   */
+  async processWithAI(articleId: string): Promise<Article> {
+    this.logger.log(`Starting AI processing for article ${articleId}`);
+
+    const article = await this.articleModel.findById(articleId).exec();
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    try {
+      // Step 1: Analyze with Domain Curator
+      this.logger.log('Step 1: Domain analysis');
+      const domainAnalysis = await this.domainCuratorAgent.analyzeArticle(article.content);
+
+      // Step 2: Extract Reading Map and Key Paragraphs
+      this.logger.log('Step 2: Extracting reading map and key paragraphs');
+      const argumentAnalysis = await this.argumentMapperAgent.generateFullArticleAnalysis(
+        article.content,
+      );
+
+      // Step 3: Extract Language Breakdown
+      this.logger.log('Step 3: Extracting language breakdown');
+      const languageBreakdown = await this.languageReasoningAgent.extractLanguageBreakdown(
+        article.content,
+        argumentAnalysis.keyParagraphs,
+      );
+
+      // Step 4: Generate Understanding Questions
+      this.logger.log('Step 4: Generating understanding questions');
+      const understandingQuestions = await this.professionalFeedbackAgent.generateUnderstandingQuestions(
+        article.content,
+        argumentAnalysis.readingMap,
+      );
+
+      // Update article with AI-generated content
+      article.readingMap = argumentAnalysis.readingMap;
+      article.keyParagraphs = argumentAnalysis.keyParagraphs;
+      article.languageBreakdown = languageBreakdown;
+      article.understandingQuestions = understandingQuestions;
+
+      // Update domain and difficulty if AI analysis suggests different values
+      article.domain = domainAnalysis.domain as any;
+      article.difficulty = domainAnalysis.difficulty as any;
+
+      const savedArticle = await article.save();
+      this.logger.log(`AI processing completed for article ${articleId}`);
+
+      return savedArticle;
+    } catch (error) {
+      this.logger.error(`AI processing failed for article ${articleId}: ${error.message}`);
+      throw error;
+    }
   }
 }

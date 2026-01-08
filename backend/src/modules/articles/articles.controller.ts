@@ -120,6 +120,31 @@ export class ArticlesController {
     };
   }
 
+  @Post(':id/process-ai')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Process article with LLM Agents (Admin only)',
+    description: 'This will generate AI content including reading map, key paragraphs, language breakdown, and understanding questions. This is a long-running operation.',
+  })
+  @ApiParam({ name: 'id', description: 'Article ID' })
+  @ApiResponse({ status: 200, description: 'Article processed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Article not found' })
+  @ApiResponse({ status: 500, description: 'LLM processing failed' })
+  async processWithAI(@Param('id') id: string) {
+    const article = await this.articlesService.processWithAI(id);
+    return {
+      id: article._id,
+      title: article.title,
+      readingMap: article.readingMap,
+      keyParagraphs: article.keyParagraphs,
+      languageBreakdown: article.languageBreakdown,
+      understandingQuestions: article.understandingQuestions,
+      domain: article.domain,
+      difficulty: article.difficulty,
+    };
+  }
+
   @Patch(':id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update article (Admin only)' })
