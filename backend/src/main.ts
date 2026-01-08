@@ -1,11 +1,40 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './modules/auth/jwt.guard';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Create Winston logger
+  const logger = WinstonModule.createLogger({
+    transports: [
+      // Console transport
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize(),
+          winston.format.printf(({ timestamp, level, message, context, trace }) => {
+            return `${timestamp} [${context || 'Application'}] ${level}: ${message}${trace ? `\n${trace}` : ''}`;
+          }),
+        ),
+      }),
+      // File transport - errors
+      new winston.transports.File({
+        filename: 'logs/error.log',
+        level: 'error',
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+      }),
+      // File transport - all logs
+      new winston.transports.File({
+        filename: 'logs/combined.log',
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+      }),
+    ],
+  });
+
+  const app = await NestFactory.create(AppModule, { logger });
 
   // Global prefix
   app.setGlobalPrefix(process.env.API_PREFIX || 'api');
@@ -43,8 +72,8 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  logger.log(`Application is running on: http://localhost:${port}`);
+  logger.log(`API Documentation: http://localhost:${port}/api/docs`);
 }
 
 bootstrap();
