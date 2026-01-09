@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MetricsService } from './common/metrics/metrics.service';
+import { MetricsMiddleware } from './common/middlewares/metrics.middleware';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ArticlesModule } from './modules/articles/articles.module';
@@ -29,7 +31,7 @@ import configuration from './config/configuration';
     MemoryItemsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, JwtAuthGuard],
-  exports: [JwtAuthGuard],
+  providers: [AppService, MetricsService, MetricsMiddleware, JwtAuthGuard],
+  exports: [JwtAuthGuard, MetricsService],
 })
 export class AppModule {}

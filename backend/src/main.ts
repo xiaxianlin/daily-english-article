@@ -6,6 +6,7 @@ import * as winston from 'winston';
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './modules/auth/jwt.guard';
 import { SecurityHeadersMiddleware } from './common/middlewares/security-headers.middleware';
+import { MetricsMiddleware } from './common/middlewares/metrics.middleware';
 
 async function bootstrap() {
   // Create Winston logger
@@ -39,6 +40,10 @@ async function bootstrap() {
 
   // Security headers middleware
   app.use(new SecurityHeadersMiddleware().use);
+
+  // Metrics middleware (must be applied after app creation)
+  const metricsMiddleware = app.select(AppModule).get(MetricsMiddleware);
+  app.use(metricsMiddleware.use.bind(metricsMiddleware));
 
   // Global prefix
   app.setGlobalPrefix(process.env.API_PREFIX || 'api');

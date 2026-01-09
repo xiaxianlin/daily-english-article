@@ -1,9 +1,14 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { AppService } from './app.service';
+import { MetricsService } from './common/metrics/metrics.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly metricsService: MetricsService,
+  ) {}
 
   @Get()
   getHello(): string {
@@ -18,5 +23,11 @@ export class AppController {
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
     };
+  }
+
+  @Get('metrics')
+  async getMetrics(@Res() res: Response): Promise<void> {
+    res.set('Content-Type', this.metricsService.getContentType());
+    res.send(await this.metricsService.getMetrics());
   }
 }
