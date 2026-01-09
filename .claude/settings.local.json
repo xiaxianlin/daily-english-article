@@ -14,7 +14,8 @@
       "Bash(npm run build:*)",
       "Bash(git reset:*)",
       "Bash(git checkout:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

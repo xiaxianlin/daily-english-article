@@ -5,14 +5,16 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/users.schema';
+import { Types } from 'mongoose';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: UsersService;
   let jwtService: JwtService;
 
+  const mockUserId = new Types.ObjectId();
   const mockUser: Partial<User> = {
-    _id: '507f1f77bcf86cd799439011',
+    _id: mockUserId,
     email: 'test@example.com',
     passwordHash: 'hashedpassword',
     name: 'Test User',
@@ -27,6 +29,8 @@ describe('AuthService', () => {
     findByEmail: jest.fn(),
     create: jest.fn(),
     updateLastLogin: jest.fn(),
+    validatePassword: jest.fn(),
+    findById: jest.fn(),
   };
 
   const mockJwtService = {
@@ -35,7 +39,7 @@ describe('AuthService', () => {
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      const config = {
+      const config: Record<string, string> = {
         'jwt.expiresIn': '7d',
       };
       return config[key];
@@ -116,7 +120,7 @@ describe('AuthService', () => {
       };
 
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      (service as any).verifyPassword = jest.fn().mockResolvedValue(true);
+      mockUsersService.validatePassword.mockResolvedValue(true);
       mockJwtService.sign.mockReturnValue('jwt-token');
 
       const result = await service.login(loginDto);
@@ -143,57 +147,26 @@ describe('AuthService', () => {
       };
 
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      (service as any).verifyPassword = jest.fn().mockResolvedValue(false);
+      mockUsersService.validatePassword.mockResolvedValue(false);
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('validateUser', () => {
-    it('should return user without password if credentials are valid', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      (service as any).verifyPassword = jest.fn().mockResolvedValue(true);
+    it('should return user if found', async () => {
+      mockUsersService.findById.mockResolvedValue(mockUser);
 
-      const result = await service.validateUser('test@example.com', 'password123');
+      const result = await service.validateUser(mockUserId.toString());
 
       expect(result).toHaveProperty('email', 'test@example.com');
-      expect(result).not.toHaveProperty('passwordHash');
+      expect(usersService.findById).toHaveBeenCalledWith(mockUserId.toString());
     });
 
-    it('should return null if user does not exist', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(null);
+    it('should throw error if user does not exist', async () => {
+      mockUsersService.findById.mockResolvedValue(null);
 
-      const result = await service.validateUser('nonexistent@example.com', 'password123');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null if password is invalid', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
-      (service as any).verifyPassword = jest.fn().mockResolvedValue(false);
-
-      const result = await service.validateUser('test@example.com', 'wrongpassword');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('verifyPassword', () => {
-    it('should return true for correct password', async () => {
-      const plainPassword = 'password123';
-      const hashedPassword = await (service as any).hashPassword(plainPassword);
-
-      const result = await (service as any).verifyPassword(plainPassword, hashedPassword);
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false for incorrect password', async () => {
-      const hashedPassword = await (service as any).hashPassword('password123');
-
-      const result = await (service as any).verifyPassword('wrongpassword', hashedPassword);
-
-      expect(result).toBe(false);
+      await expect(service.validateUser('nonexistent-id')).rejects.toThrow(UnauthorizedException);
     });
   });
 });

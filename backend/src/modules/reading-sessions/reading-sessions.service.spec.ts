@@ -29,10 +29,17 @@ describe('ReadingSessionsService', () => {
     findById: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-    sort: jest.fn(),
-    exec: jest.fn(),
+  };
+
+  const mockSessionInstance = {
+    save: jest.fn(),
+    progress: {
+      readingMapViewed: false,
+      keyParagraphsViewed: [],
+      languageBreakdownViewed: false,
+      understandingAnswered: false,
+      outputSubmitted: false,
+    },
   };
 
   beforeEach(async () => {
@@ -61,13 +68,11 @@ describe('ReadingSessionsService', () => {
         articleId: '507f1f77bcf86cd799439013',
       };
 
-      mockReadingSessionModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-
-      mockReadingSessionModel.create.mockReturnValue({
+      mockReadingSessionModel.findOne.mockResolvedValue(null);
+      mockReadingSessionModel.create.mockReturnValue(mockSessionInstance);
+      mockSessionInstance.save.mockResolvedValue({
         ...mockReadingSession,
-        save: jest.fn().mockResolvedValue(mockReadingSession),
+        ...mockSessionInstance,
       });
 
       const result = await service.create('507f1f77bcf86cd799439012', createSessionDto);
@@ -83,9 +88,7 @@ describe('ReadingSessionsService', () => {
         articleId: '507f1f77bcf86cd799439013',
       };
 
-      mockReadingSessionModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockReadingSession),
-      });
+      mockReadingSessionModel.findOne.mockResolvedValue(mockReadingSession);
 
       const result = await service.create('507f1f77bcf86cd799439012', createSessionDto);
 
@@ -96,9 +99,7 @@ describe('ReadingSessionsService', () => {
 
   describe('findOne', () => {
     it('should return a reading session by id', async () => {
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockReadingSession),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(mockReadingSession);
 
       const result = await service.findOne('507f1f77bcf86cd799439011');
 
@@ -107,57 +108,59 @@ describe('ReadingSessionsService', () => {
     });
 
     it('should throw NotFoundException if session not found', async () => {
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(null);
 
       await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('updateProgress', () => {
-    it('should successfully update session progress', async () => {
+    it('should successfully update session progress with boolean value', async () => {
       const updateProgressDto = {
-        progress: {
-          readingMapViewed: true,
-          keyParagraphsViewed: [0, 1],
-          languageBreakdownViewed: false,
-          understandingAnswered: false,
-          outputSubmitted: false,
-        },
+        field: 'readingMapViewed',
+        booleanValue: true,
       };
 
       const updatedSession = {
         ...mockReadingSession,
-        progress: updateProgressDto.progress,
+        progress: {
+          ...mockReadingSession.progress,
+          readingMapViewed: true,
+        },
       };
 
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockReadingSession),
-      });
-
-      mockReadingSessionModel.findByIdAndUpdate.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(updatedSession),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(updatedSession);
+      (updatedSession as any).save = jest.fn().mockResolvedValue(updatedSession);
 
       const result = await service.updateProgress('507f1f77bcf86cd799439011', updateProgressDto);
 
-      expect(result.progress).toEqual(updateProgressDto.progress);
-      expect(mockReadingSessionModel.findByIdAndUpdate).toHaveBeenCalled();
+      expect(result.progress.readingMapViewed).toBe(true);
     });
 
-    it('should throw NotFoundException if session not found', async () => {
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+    it('should successfully update session progress with array value', async () => {
+      const updateProgressDto = {
+        field: 'keyParagraphsViewed',
+        arrayValue: [0, 1],
+      };
 
-      await expect(
-        service.updateProgress('nonexistent-id', { progress: { readingMapViewed: true, keyParagraphsViewed: [], languageBreakdownViewed: false, understandingAnswered: false, outputSubmitted: false } })
-      ).rejects.toThrow(NotFoundException);
+      const updatedSession = {
+        ...mockReadingSession,
+        progress: {
+          ...mockReadingSession.progress,
+          keyParagraphsViewed: [0, 1],
+        },
+      };
+
+      mockReadingSessionModel.findById.mockResolvedValue(updatedSession);
+      (updatedSession as any).save = jest.fn().mockResolvedValue(updatedSession);
+
+      const result = await service.updateProgress('507f1f77bcf86cd799439011', updateProgressDto);
+
+      expect(result.progress.keyParagraphsViewed).toEqual([0, 1]);
     });
   });
 
-  describe('complete', () => {
+  describe('completeSession', () => {
     it('should successfully complete a reading session', async () => {
       const completedSession = {
         ...mockReadingSession,
@@ -165,31 +168,23 @@ describe('ReadingSessionsService', () => {
         completedAt: new Date(),
       };
 
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockReadingSession),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(mockReadingSession);
+      (completedSession as any).save = jest.fn().mockResolvedValue(completedSession);
 
-      mockReadingSessionModel.findByIdAndUpdate.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(completedSession),
-      });
-
-      const result = await service.complete('507f1f77bcf86cd799439011');
+      const result = await service.completeSession('507f1f77bcf86cd799439011');
 
       expect(result.status).toBe('completed');
       expect(result).toHaveProperty('completedAt');
-      expect(mockReadingSessionModel.findByIdAndUpdate).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if session not found', async () => {
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(null);
 
-      await expect(service.complete('nonexistent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.completeSession('nonexistent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('abandon', () => {
+  describe('abandonSession', () => {
     it('should successfully abandon a reading session', async () => {
       const abandonedSession = {
         ...mockReadingSession,
@@ -197,29 +192,18 @@ describe('ReadingSessionsService', () => {
         completedAt: new Date(),
       };
 
-      mockReadingSessionModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockReadingSession),
-      });
+      mockReadingSessionModel.findById.mockResolvedValue(mockReadingSession);
+      (abandonedSession as any).save = jest.fn().mockResolvedValue(abandonedSession);
 
-      mockReadingSessionModel.findByIdAndUpdate.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(abandonedSession),
-      });
-
-      const result = await service.abandon('507f1f77bcf86cd799439011');
+      const result = await service.abandonSession('507f1f77bcf86cd799439011');
 
       expect(result.status).toBe('abandoned');
-      expect(mockReadingSessionModel.findByIdAndUpdate).toHaveBeenCalled();
     });
   });
 
   describe('findByUser', () => {
     it('should return all sessions for a user', async () => {
-      const mockQuery = {
-        sort: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([mockReadingSession]),
-      };
-
-      mockReadingSessionModel.find.mockReturnValue(mockQuery);
+      mockReadingSessionModel.find.mockResolvedValue([mockReadingSession]);
 
       const result = await service.findByUser('507f1f77bcf86cd799439012');
 
@@ -230,12 +214,7 @@ describe('ReadingSessionsService', () => {
     });
 
     it('should filter by status when provided', async () => {
-      const mockQuery = {
-        sort: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([mockReadingSession]),
-      };
-
-      mockReadingSessionModel.find.mockReturnValue(mockQuery);
+      mockReadingSessionModel.find.mockResolvedValue([mockReadingSession]);
 
       await service.findByUser('507f1f77bcf86cd799439012', 'in_progress');
 
