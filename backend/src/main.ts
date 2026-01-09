@@ -5,6 +5,7 @@ import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { AppModule } from './app.module';
 import { JwtAuthGuard } from './modules/auth/jwt.guard';
+import { SecurityHeadersMiddleware } from './common/middlewares/security-headers.middleware';
 
 async function bootstrap() {
   // Create Winston logger
@@ -35,6 +36,9 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create(AppModule, { logger });
+
+  // Security headers middleware
+  app.use(new SecurityHeadersMiddleware().use);
 
   // Global prefix
   app.setGlobalPrefix(process.env.API_PREFIX || 'api');
