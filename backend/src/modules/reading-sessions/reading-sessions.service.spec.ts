@@ -25,10 +25,20 @@ describe('ReadingSessionsService', () => {
   };
 
   const mockReadingSessionModel = {
-    find: jest.fn(),
-    findById: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
+    find: jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnThis(),
+      populate: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([mockReadingSession]),
+    }),
+    findById: jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(mockReadingSession),
+    }),
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data: any) => ({
+      ...data,
+      save: jest.fn().mockResolvedValue(mockReadingSession),
+    })),
   };
 
   const mockSessionInstance = {

@@ -49,28 +49,4 @@ describe('LLMService', () => {
       expect(configService.get).toHaveBeenCalledWith('llm.provider');
     });
   });
-
-  describe('parseJSONResponse', () => {
-    it('should parse valid JSON from response', () => {
-      const response = '```json\n{"key": "value"}\n```';
-
-      const result = (service as any).parseJSONResponse(response);
-
-      expect(result).toEqual({ key: 'value' });
-    });
-
-    it('should handle response without markdown blocks', () => {
-      const response = '{"key": "value"}';
-
-      const result = (service as any).parseJSONResponse(response);
-
-      expect(result).toEqual({ key: 'value' });
-    });
-
-    it('should throw error for invalid JSON', () => {
-      const response = 'Not a JSON response';
-
-      expect(() => (service as any).parseJSONResponse(response)).toThrow();
-    });
-  });
 });

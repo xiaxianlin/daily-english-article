@@ -3,6 +3,10 @@ import { NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { ArticlesService } from './articles.service';
 import { Article } from './articles.schema';
+import { DomainCuratorAgent } from '../llm-agents/agents/domain-curator.agent';
+import { ArgumentMapperAgent } from '../llm-agents/agents/argument-mapper.agent';
+import { LanguageReasoningAgent } from '../llm-agents/agents/language-reasoning.agent';
+import { ProfessionalFeedbackAgent } from '../llm-agents/agents/professional-feedback.agent';
 
 describe('ArticlesService', () => {
   let service: ArticlesService;
@@ -21,13 +25,47 @@ describe('ArticlesService', () => {
   };
 
   const mockArticleModel = {
-    find: jest.fn(),
-    findById: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-    findByIdAndDelete: jest.fn(),
-    countDocuments: jest.fn(),
+    find: jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([mockArticle]),
+    }),
+    findById: jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue(mockArticle),
+    }),
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data: any) => ({
+      ...data,
+      save: jest.fn().mockResolvedValue(mockArticle),
+    })),
+    findByIdAndUpdate: jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue(mockArticle),
+    }),
+    findByIdAndDelete: jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue(mockArticle),
+    }),
+    countDocuments: jest.fn().mockResolvedValue(1),
+  };
+
+  const mockDomainCuratorAgent = {
+    analyzeArticle: jest.fn(),
+  };
+
+  const mockArgumentMapperAgent = {
+    generateFullArticleAnalysis: jest.fn(),
+  };
+
+  const mockLanguageReasoningAgent = {
+    extractLanguageBreakdown: jest.fn(),
+  };
+
+  const mockProfessionalFeedbackAgent = {
+    generateUnderstandingQuestions: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -37,6 +75,22 @@ describe('ArticlesService', () => {
         {
           provide: 'ArticleModel',
           useValue: mockArticleModel,
+        },
+        {
+          provide: DomainCuratorAgent,
+          useValue: mockDomainCuratorAgent,
+        },
+        {
+          provide: ArgumentMapperAgent,
+          useValue: mockArgumentMapperAgent,
+        },
+        {
+          provide: LanguageReasoningAgent,
+          useValue: mockLanguageReasoningAgent,
+        },
+        {
+          provide: ProfessionalFeedbackAgent,
+          useValue: mockProfessionalFeedbackAgent,
         },
       ],
     }).compile();

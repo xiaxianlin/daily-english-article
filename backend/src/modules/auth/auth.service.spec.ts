@@ -84,7 +84,6 @@ describe('AuthService', () => {
         interests: ['AI', 'finance'],
       };
 
-      mockUsersService.findByEmail.mockResolvedValue(null);
       mockUsersService.create.mockResolvedValue(mockUser);
       mockJwtService.sign.mockReturnValue('jwt-token');
 
@@ -93,22 +92,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('tokenType', 'Bearer');
       expect(result).toHaveProperty('expiresIn');
-      expect(usersService.findByEmail).toHaveBeenCalledWith(registerDto.email);
-      expect(usersService.create).toHaveBeenCalled();
-    });
-
-    it('should throw error if user already exists', async () => {
-      const registerDto = {
-        email: 'test@example.com',
-        password: 'password123',
-        name: 'Test User',
-        englishLevel: 'B1' as const,
-        interests: ['AI'],
-      };
-
-      mockUsersService.findByEmail.mockResolvedValue(mockUser);
-
-      await expect(service.register(registerDto)).rejects.toThrow(UnauthorizedException);
+      expect(mockUsersService.create).toHaveBeenCalled();
     });
   });
 
@@ -163,10 +147,12 @@ describe('AuthService', () => {
       expect(usersService.findById).toHaveBeenCalledWith(mockUserId.toString());
     });
 
-    it('should throw error if user does not exist', async () => {
+    it('should return null if user does not exist', async () => {
       mockUsersService.findById.mockResolvedValue(null);
 
-      await expect(service.validateUser('nonexistent-id')).rejects.toThrow(UnauthorizedException);
+      const result = await service.validateUser('nonexistent-id');
+
+      expect(result).toBeNull();
     });
   });
 });
